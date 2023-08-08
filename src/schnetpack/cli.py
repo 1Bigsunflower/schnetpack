@@ -21,8 +21,9 @@ from schnetpack import properties
 
 log = logging.getLogger(__name__)
 
-
+# 生成一个 UUID并将其转换为字符串。
 OmegaConf.register_new_resolver("uuid", lambda x: str(uuid.uuid1()))
+# 函数创建一个临时目录，并返回该目录的路径。
 OmegaConf.register_new_resolver("tmpdir", tempfile.mkdtemp, use_cache=True)
 
 header = """
@@ -41,14 +42,15 @@ def train(config: DictConfig):
 
     """
     print(header)
+    # 输出当前程序运行的主机名
     log.info("Running on host: " + str(socket.gethostname()))
-
+    # 检查配置文件中是否缺少"data_dir"字段
     if OmegaConf.is_missing(config, "run.data_dir"):
         log.error(
             f"Config incomplete! You need to specify the data directory `data_dir`."
         )
         return
-
+    # 检查配置文件中是否缺少model和data字段
     if not ("model" in config and "data" in config):
         log.error(
             f"""
@@ -58,7 +60,7 @@ def train(config: DictConfig):
         """
         )
         return
-
+    # 检查配置文件
     if os.path.exists("config.yaml"):
         log.info(
             f"Config already exists in given directory {os.path.abspath('.')}."
@@ -196,7 +198,6 @@ def predict(config: DictConfig):
             results[properties.idx_m] = batch[properties.idx][batch[properties.idx_m]]
             results = {k: v.detach().cpu() for k, v in results.items()}
             return results
-
 
     log.info(f"Instantiating trainer <{config.trainer._target_}>")
     trainer: Trainer = hydra.utils.instantiate(

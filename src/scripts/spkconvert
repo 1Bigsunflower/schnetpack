@@ -5,24 +5,28 @@ from ase.db import connect
 import numpy as np
 from tqdm import tqdm
 
-
+# 将 ASE 数据集中的单位设置为指定的单位，并通过 connect 函数连接到 ASE 数据库
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Set units of an ASE dataset, e.g. to convert from SchNetPack 1.0 to the new format."
     )
+    # ASE 数据库的路径
     parser.add_argument(
         "data_path",
         help="Path to ASE DB dataset",
     )
+    # 距离的单位
     parser.add_argument(
         "--distunit",
         help="Distance unit as string, corresponding to ASE units (e.g. `Ang`)",
     )
+    # 属性的单位
     parser.add_argument(
         "--propunit",
         help="Property units as string, corresponding "
         "to ASE units (e.g. `kcal/mol/Ang`), in the form: `property1:unit1,property2:unit2`",
     )
+    #
     parser.add_argument(
         "--expand_property_dims",
         default=[],
