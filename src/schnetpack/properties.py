@@ -8,26 +8,24 @@ from typing import Final
 
 idx: Final[str] = "_idx"
 
-## structure
-Z: Final[str] = "_atomic_numbers"  #: nuclear charge
-position: Final[str] = "_positions"  #: atom positions
-R: Final[str] = position  #: atom positions
+## structure  定义了一些常量，用于表示不同化学属性和结构属性
+Z: Final[str] = "_atomic_numbers"  #: nuclear charge 原子核电荷
+position: Final[str] = "_positions"  #: atom positions 原子的位置
+R: Final[str] = position  #: atom positions 原子的位置
 
-cell: Final[str] = "_cell"  #: unit cell
+cell: Final[str] = "_cell"  #: unit cell 晶胞
 strain: Final[str] = "strain"
-pbc: Final[str] = "_pbc"  #: periodic boundary conditions
+pbc: Final[str] = "_pbc"  #: periodic boundary conditions 周期性边界条件
 
-seg_m: Final[str] = "_seg_m"  #: start indices of systems
-idx_m: Final[str] = "_idx_m"  #: indices of systems
-idx_i: Final[str] = "_idx_i"  #: indices of center atoms
-idx_j: Final[str] = "_idx_j"  #: indices of neighboring atoms
-idx_i_lr: Final[str] = "_idx_i_lr"  #: indices of center atoms for long-range
-idx_j_lr: Final[str] = "_idx_j_lr"  #: indices of neighboring atoms for long-range
+seg_m: Final[str] = "_seg_m"  #: start indices of systems  系统的起始索引
+idx_m: Final[str] = "_idx_m"  #: indices of systems  系统的索引
+idx_i: Final[str] = "_idx_i"  #: indices of center atoms  中心原子的索引
+idx_j: Final[str] = "_idx_j"  #: indices of neighboring atoms  邻近原子的索引
+idx_i_lr: Final[str] = "_idx_i_lr"  #: indices of center atoms for long-range  长程中心原子指数
+idx_j_lr: Final[str] = "_idx_j_lr"  #: indices of neighboring atoms for long-range  长程相互作用邻近原子的索引
 
-lidx_i: Final[str] = "_idx_i_local"  #: local indices of center atoms (within system)
-lidx_j: Final[
-    str
-] = "_idx_j_local"  #: local indices of neighboring atoms (within system)
+lidx_i: Final[str] = "_idx_i_local"  #: local indices of center atoms (within system)  中心原子的局部索引（在系统内部）
+lidx_j: Final[str] = "_idx_j_local"  #: local indices of neighboring atoms (within system)
 Rij: Final[str] = "_Rij"  #: vectors pointing from center atoms to neighboring atoms
 Rij_lr: Final[
     str
@@ -72,6 +70,7 @@ shielding: Final[str] = "shielding"
 nuclear_spin_coupling: Final[str] = "nuclear_spin_coupling"
 
 ## external fields needed for different response properties
+# 这个字典的作用是为了指示在计算这些响应属性时需要提供相应的外部场。
 required_external_fields = {
     dipole_moment: [electric_field],
     dipole_derivatives: [electric_field],

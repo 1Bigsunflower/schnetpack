@@ -68,7 +68,7 @@ def train(config: DictConfig):
         )
 
         # save old config
-        old_config = OmegaConf.load("config.yaml")
+        old_config = OmegaConf.load("config.yaml")  # 加载原始配置文件
         count = 1
         while os.path.exists(f"config.old.{count}.yaml"):
             count += 1
@@ -79,12 +79,13 @@ def train(config: DictConfig):
         if config.run.ckpt_path is None:
             if os.path.exists("checkpoints/last.ckpt"):
                 config.run.ckpt_path = "checkpoints/last.ckpt"
-
+        # 显示正在从哪个检查点进行恢复训练
         if config.run.ckpt_path is not None:
             log.info(
                 f"Resuming from checkpoint {os.path.abspath(config.run.ckpt_path)}"
             )
     else:
+        # 将当前配置保存到 "config.yaml" 文件中
         with open("config.yaml", "w") as f:
             OmegaConf.save(config, f, resolve=False)
 
@@ -92,6 +93,7 @@ def train(config: DictConfig):
         print_config(config, resolve=False)
 
     # Set seed for random number generators in pytorch, numpy and python.random
+    # 进行随机数生成的初始化
     if "seed" in config:
         log.info(f"Seed with <{config.seed}>")
         seed_everything(config.seed, workers=True)
@@ -115,7 +117,7 @@ def train(config: DictConfig):
     scheduler_cls = (
         str2class(config.task.scheduler_cls) if config.task.scheduler_cls else None
     )
-
+    # 传入配置中的task参数、model参数、optimizer_cls参数、scheduler_cls参数
     task: spk.AtomisticTask = hydra.utils.instantiate(
         config.task,
         model=model,
@@ -178,40 +180,49 @@ def train(config: DictConfig):
 @hydra.main(config_path="configs", config_name="predict", version_base="1.2")
 def predict(config: DictConfig):
     log.info(f"Load data from `{config.data.datapath}`")
+    # 读入数据集
     dataset: BaseAtomsData = hydra.utils.instantiate(config.data)
     loader = AtomsLoader(dataset, batch_size=config.batch_size, num_workers=8)
-
+    # 读入最佳模型
     model = torch.load("best_model")
 
     class WrapperLM(LightningModule):
         def __init__(self, model, enable_grad=config.enable_grad):
             super().__init__()
             self.model = model
-            self.enable_grad = enable_grad
+            self.enable_grad = enable_grad  # 控制是否进行梯度计算
 
         def forward(self, x):
             return model(x)
 
         def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0):
             torch.set_grad_enabled(self.enable_grad)
+            # 获取预测值
             results = self(batch)
+            # 将指定索引的样本从 batch 中提取出来，并将其存储到 results 字典中特定的键对应的值中
             results[properties.idx_m] = batch[properties.idx][batch[properties.idx_m]]
+            # 分离字典中的键和值，并将数据转移到 CPU 上，最后构造成一个新的字典并重新赋值给result。这样可以避免在后续使用 results 中的数据时产生梯度计算的额外开销和内存消耗
             results = {k: v.detach().cpu() for k, v in results.items()}
             return results
 
     log.info(f"Instantiating trainer <{config.trainer._target_}>")
+    # 用Trainer对象来管理模型的训练
     trainer: Trainer = hydra.utils.instantiate(
         config.trainer,
+        # 将推理结果写入文件，output_dir：保存推理结果，write_interval：每隔多少个批次将结果写入文件一次，write_idx：指定写入的索引
         callbacks=[
             PredictionWriter(
                 output_dir=config.outputdir, write_interval=config.write_interval, write_idx=config.write_idx_m
             )
         ],
         default_root_dir=".",
+        # 用于将函数的默认参数设置为部分参数。目的是为了允许在配置文件中省略一些参数，而使用在代码中定义的默认值。使用部分参数有助于简化配置文件，并减少重复定义
         _convert_="partial",
     )
+    # 预测结果
     trainer.predict(
         WrapperLM(model, config.enable_grad),
         dataloaders=loader,
+        # 用于指定检查点文件的路径
         ckpt_path=config.ckpt_path,
     )
