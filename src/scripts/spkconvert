@@ -26,7 +26,7 @@ if __name__ == "__main__":
         help="Property units as string, corresponding "
         "to ASE units (e.g. `kcal/mol/Ang`), in the form: `property1:unit1,property2:unit2`",
     )
-    #
+    # 用于将给定属性的第一个维度扩展
     parser.add_argument(
         "--expand_property_dims",
         default=[],
@@ -35,53 +35,72 @@ if __name__ == "__main__":
              "(required for example for old FieldSchNet datasets). "
              "Add property names here in the form 'property1 property2 property3'",
     )
+    # 解析命令行参数，将结果保存在args对象中
     args = parser.parse_args()
+    # 连接到数据库
     with connect(args.data_path) as db:
+        # 获取数据库的元数据信息
         meta = db.metadata
     print(meta)
-
+    # 检查是否存在"atomrefs"键
     if "atomrefs" not in meta.keys():
+        # 初始化为空字典
         meta["atomrefs"] = {}
-    elif "atref_labels" in meta.keys():
+    elif "atref_labels" in meta.keys():  # 检查是否存在"atref_labels"键，若存在则重新组织"atomrefs"键的内容
+        # 将"atomrefs"键的值转换为NumPy数组
         old_atref = np.array(meta["atomrefs"])
         new_atomrefs = {}
         labels = meta["atref_labels"]
+        # 检查"atref_labels"键的值的类型。如果是字符串类型，则将其转换为列表类型
         if type(labels) is str:
             labels = [labels]
+        # 遍历"labels"列表中的每个标签
         for i, label in enumerate(labels):
             print(i, label, old_atref[:, i])
+            # 获取标签对应的列，并将其转换为列表类型
             new_atomrefs[label] = list(old_atref[:, i])
         meta["atomrefs"] = new_atomrefs
+        # 完成对"atomrefs"键的重新组织和更新
         del meta["atref_labels"]
 
     if args.distunit:
         if args.distunit == "A":
+            # 检查args.distunit的值是否为"A"（安培）
             raise ValueError(
                 "The provided unit (A for Ampere) is not a valid distance unit according to the ASE unit"
                 " definitions. You probably mean `Ang`/`Angstrom`. Please also check your property units!"
             )
+        # 更新元数据字典中的距离单位
         meta["_distance_unit"] = args.distunit
 
-    if args.propunit:
+    if args.propunit:  # 属性单位
+        # 检查元数据字典中是否存在"_property_unit_dict"键。如果不存在，将其初始化为空字典
         if "_property_unit_dict" not in meta.keys():
             meta["_property_unit_dict"] = {}
-
+        # 使用逗号分隔不同的属性和单位
         for p in args.propunit.split(","):
+            # 将属性和单位以冒号分隔
             prop, unit = p.split(":")
+            # 将属性名prop作为键，单位unit作为值，添加到元数据字典中的"_property_unit_dict"键对应的字典中。
             meta["_property_unit_dict"][prop] = unit
 
     with connect(args.data_path) as db:
+        # 更新数据库连接对象的元数据属性
         db.metadata = meta
-
-    if args.expand_property_dims is not None and len(args.expand_property_dims) > 0:
+    # 对数据库中的数据进行属性维度拓展
+    if args.expand_property_dims is not None and len(args.expand_property_dims) > 0:  # 判断args.expand_property_dims是否存在且长度大于0
 
         with connect(args.data_path) as db:
+            # 循环迭代数据库中的每一行数据
             for i in tqdm(range(len(db))):
                 atoms_row = db.get(i + 1)
-                data = {}
+                data = {}  # 用于存储更新后的数据
                 for p, v in atoms_row.data.items():
+                    # 遍历原子行数据中的每对属性和值(p和v)
                     if p in args.expand_property_dims:
+                        # 如果属性p在args.expand_property_dims列表中，对属性v进行维度拓展。
                         data[p] = np.expand_dims(v, 0)
                     else:
                         data[p] = v
+                # 将更新后的数据data写回到数据库中
                 db.update(i + 1, data=data)

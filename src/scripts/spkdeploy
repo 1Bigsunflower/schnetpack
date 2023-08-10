@@ -6,41 +6,42 @@ import argparse
 
 
 def get_jit_model(model):
+    # 用于将传入的模型转换为JIT模型，JIT模型是一种使用Torch的即时编译功能生成的动态计算图模型
     # fix invalid operations in postprocessing
-    jit_postprocessors = nn.ModuleList()
-    for postprocessor in model.postprocessors:
+    jit_postprocessors = nn.ModuleList()  # nn.ModuleList()是PyTorch中的一个容器类，用于存储多个nn.Module模块的列表。
+    for postprocessor in model.postprocessors:  # 遍历原始模型中的每个后处理器
         # ignore type casting
-        if type(postprocessor) in [CastTo64, CastTo32]:
+        if type(postprocessor) in [CastTo64, CastTo32]:  # 判断后处理器的类型是否为CastTo64或CastTo32
             continue
         # ensure offset mean is float
-        if type(postprocessor) == AddOffsets:
-            postprocessor.mean = postprocessor.mean.float()
+        if type(postprocessor) == AddOffsets:  # 判断后处理器的类型是否为AddOffsets
+            postprocessor.mean = postprocessor.mean.float()  # 将其mean属性转换为浮点数
 
-        jit_postprocessors.append(postprocessor)
-    model.postprocessors = jit_postprocessors
+        jit_postprocessors.append(postprocessor)  # 将修正后的后处理器添加到jit_postprocessors列表中
+    model.postprocessors = jit_postprocessors  # 将model.postprocessors属性更新
 
-    return torch.jit.script(model)
+    return torch.jit.script(model)  # 将修正后的模型转换为JIT模型，并返回该JIT模型
 
 
-def save_jit_model(model, model_path):
-    jit_model = get_jit_model(model)
+def save_jit_model(model, model_path):  # 保存JIT模型到指定的文件路径
+    jit_model = get_jit_model(model)  # 获取转换后的JIT版本模型
 
     # add metadata
-    metadata = dict()
-    metadata["cutoff"] = str(jit_model.representation.cutoff.item()).encode("ascii")
+    metadata = dict()  # 用于存储额外的元数据信息
+    metadata["cutoff"] = str(jit_model.representation.cutoff.item()).encode("ascii")  # 将cutoff属性从JIT模型中获取，并将其转换为字符串，并使用ASCII编码转换为字节流
 
-    torch.jit.save(jit_model, model_path, _extra_files=metadata)
+    torch.jit.save(jit_model, model_path, _extra_files=metadata)  # 将JIT模型保存到指定的model_path文件路径。通过设置_extra_files参数为metadata，将额外的元数据信息与模型一起保存。
 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("model_path")
-    parser.add_argument("deployed_model_path")
-    parser.add_argument("--device", type=str, default="cpu")
+    parser.add_argument("model_path")  # 原模型的路径
+    parser.add_argument("deployed_model_path")  # 指定保存部署模型的路径
+    parser.add_argument("--device", type=str, default="cpu")  # 指定设备，默认为"cpu"
     args = parser.parse_args()
 
-    model = torch.load(args.model_path, map_location=args.device)
-    save_jit_model(model, args.deployed_model_path)
+    model = torch.load(args.model_path, map_location=args.device)  # 加载原模型，并将模型加载到指定的设备上
+    save_jit_model(model, args.deployed_model_path)  # 保存JIT模型和路径
 
     print(f"stored deployed model at {args.deployed_model_path}.")

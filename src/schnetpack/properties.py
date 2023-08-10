@@ -8,7 +8,7 @@ from typing import Final
 
 idx: Final[str] = "_idx"
 
-## structure  定义了一些常量，用于表示不同化学属性和结构属性
+# structure  定义了一些常量，用于表示不同化学属性和结构属性
 Z: Final[str] = "_atomic_numbers"  #: nuclear charge 原子核电荷
 position: Final[str] = "_positions"  #: atom positions 原子的位置
 R: Final[str] = position  #: atom positions 原子的位置
