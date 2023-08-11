@@ -69,7 +69,7 @@ nuclear_magnetic_moments: Final[str] = "nuclear_magnetic_moments"
 shielding: Final[str] = "shielding"
 nuclear_spin_coupling: Final[str] = "nuclear_spin_coupling"
 
-## external fields needed for different response properties
+# external fields needed for different response properties
 # 这个字典的作用是为了指示在计算这些响应属性时需要提供相应的外部场。
 required_external_fields = {
     dipole_moment: [electric_field],
