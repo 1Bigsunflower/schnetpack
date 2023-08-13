@@ -2,7 +2,7 @@ import torch
 
 __all__ = ["ReduceLROnPlateau"]
 
-
+# 对ReduceLROnPlateau学习率调度器进行扩展，添加监测指标的指数移动平均平滑处理。
 class ReduceLROnPlateau(torch.optim.lr_scheduler.ReduceLROnPlateau):
     """
     Extends PyTorch ReduceLROnPlateau by exponential smoothing of the monitored metric
@@ -21,7 +21,7 @@ class ReduceLROnPlateau(torch.optim.lr_scheduler.ReduceLROnPlateau):
         min_lr=0,
         eps=1e-8,
         verbose=False,
-        smoothing_factor=0.0,
+        smoothing_factor=0.0,  # 控制指数移动平均的平滑因子
     ):
         """
         Args:
@@ -58,27 +58,28 @@ class ReduceLROnPlateau(torch.optim.lr_scheduler.ReduceLROnPlateau):
             smoothing_factor: smoothing_factor of exponential moving average
         """
         super().__init__(
-            optimizer=optimizer,
-            mode=mode,
-            factor=factor,
-            patience=patience,
-            threshold=threshold,
-            threshold_mode=threshold_mode,
-            cooldown=cooldown,
-            min_lr=min_lr,
-            eps=eps,
-            verbose=verbose,
+            optimizer=optimizer,  # 优化器
+            mode=mode,  # min/max模式，根据监控指标减小或增大时，更改学习速率
+            factor=factor,  # 学习率降低因子，新学习率=就学习率*因子
+            patience=patience,  # 在没有改善的情况下经过多少迭代后，学习率降低
+            threshold=threshold,  # 测量新最优解的阈值
+            threshold_mode=threshold_mode,  # 取值为rel或abs之一。不同模式下的动态阈值计算方法不同
+            cooldown=cooldown,  # 降低学习速率后，恢复正常操作之前等待的迭代次数
+            min_lr=min_lr,  # 学习率下限
+            eps=eps,  # 应用于学习率的最小衰减，新旧学习率之间差异小于eps，则忽略更新
+            verbose=verbose,  # 每次更新时是否将消息打印到stdout
         )
-        self.smoothing_factor = smoothing_factor
-        self.ema_loss = None
+        self.smoothing_factor = smoothing_factor  # 指数移动平均的平滑因子
+        self.ema_loss = None  # 存储指数移动平均损失值
 
-    def step(self, metrics, epoch=None):
-        current = float(metrics)
-        if self.ema_loss is None:
+    def step(self, metrics, epoch=None):  # 用于在每个训练步骤中执行指数移动平均的更新
+        current = float(metrics)  # 当前度量指标值
+        if self.ema_loss is None:  # 确保第一次更新时ema_loss有初值
             self.ema_loss = current
         else:
+            # 计算指数移动平均的损失值
             self.ema_loss = (
                 self.smoothing_factor * self.ema_loss
                 + (1.0 - self.smoothing_factor) * current
             )
-        super().step(current, epoch)
+        super().step(current, epoch)  # 将当前的度量指标值和训练周期传递，进行相应的更新操作

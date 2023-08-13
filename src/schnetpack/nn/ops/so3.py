@@ -7,6 +7,7 @@ from typing import Tuple
 
 
 @lru_cache(maxsize=10)
+# 构建球面谐波的索引数组
 def sh_indices(lmax: int) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Build index arrays for spherical harmonics
@@ -22,6 +23,7 @@ def sh_indices(lmax: int) -> Tuple[torch.Tensor, torch.Tensor]:
 
 
 @lru_cache(maxsize=10)
+# 生成将复数形式的球面谐波转换为实数形式的转换矩阵
 def generate_sh_to_rsh(lmax: int) -> torch.Tensor:
     """
     Generate transformation matrix to convert (complex) spherical harmonics to real form
@@ -45,6 +47,7 @@ def generate_sh_to_rsh(lmax: int) -> torch.Tensor:
 
 
 @lru_cache(maxsize=10)
+# 生成复数球面谐波的标准 Clebsch-Gordan 系数
 def generate_clebsch_gordan(lmax: int) -> torch.Tensor:
     """
     Generate standard Clebsch-Gordan coefficients for complex spherical harmonics
@@ -71,6 +74,7 @@ def generate_clebsch_gordan(lmax: int) -> torch.Tensor:
 
 
 @lru_cache(maxsize=10)
+# 生成实数球面谐波的 Clebsch-Gordan 系数
 def generate_clebsch_gordan_rsh(
     lmax: int, parity_invariance: bool = True
 ) -> torch.Tensor:
@@ -107,6 +111,7 @@ def generate_clebsch_gordan_rsh(
     return cg_rsh
 
 
+# 将 Clebsch-Gordan 系数张量转换为稀疏格式
 def sparsify_clebsch_gordon(
     cg: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -134,6 +139,7 @@ def sparsify_clebsch_gordon(
     return cg_sparse, idx_in_1, idx_in_2, idx_out
 
 
+# 对负数张量进行四舍五入
 def round_cmp(x: torch.Tensor, decimals: int = 1):
     return torch.round(x.real, decimals=decimals) + 1j * torch.round(
         x.imag, decimals=decimals

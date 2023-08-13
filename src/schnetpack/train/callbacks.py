@@ -116,43 +116,43 @@ class ModelCheckpoint(BaseModelCheckpoint):
                 self.task.save_model(self.model_path, do_postprocessing=True)  # 保存模型到指定路径，并进行后处理操作
 
 
-class ExponentialMovingAverage(Callback):
+class ExponentialMovingAverage(Callback):  # 在训练过程中实现指数移动平均算法
     def __init__(self, decay, *args, **kwargs):
-        self.decay = decay
-        self.ema = None
-        self._to_load = None
+        self.decay = decay  # 指数移动平均的衰减因子
+        self.ema = None  # 指数移动平均对象
+        self._to_load = None  # 要加载的状态字典
 
-    def on_fit_start(self, trainer, pl_module: AtomisticTask):
-        if self.ema is None:
+    def on_fit_start(self, trainer, pl_module: AtomisticTask):  # 初始化工作
+        if self.ema is None:  # 如果ema为空。则创建一个指数移动平均对象，并设置衰减因子
             self.ema = EMA(pl_module.model.parameters(), decay=self.decay)
-        if self._to_load is not None:
+        if self._to_load is not None:  # 如果状态字典不空，加载状态字典到ema中
             self.ema.load_state_dict(self._to_load)
             self._to_load = None
 
         # load average parameters, to have same starting point as after validation
-        self.ema.store()
-        self.ema.copy_to()
+        self.ema.store()  # 保存当前模型的参数状态，确保在验证后重新开始训练时，模型参数的起始点与验证后保持一致
+        self.ema.copy_to()  # 将指数移动平均对象中的参数拷贝到模型中，在进行验证时模型使用的是平滑后的参数，而不是原始的参数值
 
     def on_train_epoch_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        self.ema.restore()
+        self.ema.restore()  # 训练开始时，将ema中参数恢复到模型中
 
     def on_train_batch_end(self, trainer, pl_module: AtomisticTask, *args, **kwargs):
-        self.ema.update()
+        self.ema.update()  # 训练batch结束时，更新ema参数
 
-    def on_validation_epoch_start(
+    def on_validation_epoch_start(  # 每个验证epoch开始时，将模型参数保存到ema中，并将ema中的参数拷贝到模型中。
         self, trainer: "pl.Trainer", pl_module: AtomisticTask, *args, **kwargs
     ):
         self.ema.store()
         self.ema.copy_to()
 
-    def load_state_dict(self, state_dict):
+    def load_state_dict(self, state_dict):  # 加载状态字典。如果状态字典中包含"ema"键，并且ema为空，将状态字典保存到_to_load中；否则，将状态字典加载到ema中。
         if "ema" in state_dict:
             if self.ema is None:
                 self._to_load = state_dict["ema"]
             else:
                 self.ema.load_state_dict(state_dict["ema"])
 
-    def state_dict(self):
+    def state_dict(self):  # 返回包含ema状态字典的字典
         return {"ema": self.ema.state_dict()}

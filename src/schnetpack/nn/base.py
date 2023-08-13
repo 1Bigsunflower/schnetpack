@@ -12,6 +12,7 @@ __all__ = ["Dense"]
 
 
 class Dense(nn.Linear):
+    # 带有激活函数的全连接线性层
     r"""Fully connected linear layer with activation function.
 
     .. math::
@@ -20,12 +21,12 @@ class Dense(nn.Linear):
 
     def __init__(
         self,
-        in_features: int,
-        out_features: int,
-        bias: bool = True,
-        activation: Union[Callable, nn.Module] = None,
-        weight_init: Callable = xavier_uniform_,
-        bias_init: Callable = zeros_,
+        in_features: int,  # 输入特征的数量
+        out_features: int,  # 输出特征的数量
+        bias: bool = True,  # 是否使用偏置参数
+        activation: Union[Callable, nn.Module] = None,  # 激活函数
+        weight_init: Callable = xavier_uniform_,  # 权重的初始化函数
+        bias_init: Callable = zeros_,  # 偏置的初始化函数
     ):
         """
         Args:
@@ -42,14 +43,14 @@ class Dense(nn.Linear):
 
         self.activation = activation
         if self.activation is None:
-            self.activation = nn.Identity()
+            self.activation = nn.Identity()  # 默认使用的激活函数
 
-    def reset_parameters(self):
+    def reset_parameters(self):  # 重新初始化权重和偏置参数
         self.weight_init(self.weight)
         if self.bias is not None:
             self.bias_init(self.bias)
 
     def forward(self, input: torch.Tensor):
-        y = F.linear(input, self.weight, self.bias)
-        y = self.activation(y)
+        y = F.linear(input, self.weight, self.bias)  # 计算输入张量与权重和偏置的线性变换结果
+        y = self.activation(y)  # 传入激活函数
         return y

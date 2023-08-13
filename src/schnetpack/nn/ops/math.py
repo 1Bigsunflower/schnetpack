@@ -1,6 +1,7 @@
 import torch
 
 
+# 计算二项式系数的函数
 def binom(n: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
     """
     Compute binomial coefficients (n k)

@@ -6,6 +6,7 @@ from torch.nn import functional
 __all__ = ["shifted_softplus", "softplus_inverse"]
 
 
+# 计算平移的软正切激活函数
 def shifted_softplus(x: torch.Tensor):
     r"""Compute shifted soft-plus activation function.
 
@@ -22,6 +23,7 @@ def shifted_softplus(x: torch.Tensor):
     return functional.softplus(x) - math.log(2.0)
 
 
+# 计算softplus的反函数
 def softplus_inverse(x: torch.Tensor):
     """
     Inverse of the softplus function.
