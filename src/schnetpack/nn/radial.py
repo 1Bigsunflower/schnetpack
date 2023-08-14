@@ -8,14 +8,16 @@ __all__ = ["gaussian_rbf", "GaussianRBF", "GaussianRBFCentered", "BesselRBF"]
 from torch import nn as nn
 
 
+# 高斯径向基函数
 def gaussian_rbf(inputs: torch.Tensor, offsets: torch.Tensor, widths: torch.Tensor):
     coeff = -0.5 / torch.pow(widths, 2)
     diff = inputs[..., None] - offsets
     y = torch.exp(coeff * torch.pow(diff, 2))
+    # 表示输入数据相对于每个中心偏移量的高斯函数值
     return y
 
 
-class GaussianRBF(nn.Module):
+class GaussianRBF(nn.Module):  # 计算高斯径向基函数
     r"""Gaussian radial basis functions."""
 
     def __init__(
@@ -24,16 +26,16 @@ class GaussianRBF(nn.Module):
         """
         Args:
             n_rbf: total number of Gaussian functions, :math:`N_g`.
-            cutoff: center of last Gaussian function, :math:`\mu_{N_g}`
-            start: center of first Gaussian function, :math:`\mu_0`.
+            cutoff: center of last Gaussian function, :math:`\mu_{N_g}`  最后一个高斯函数的中心值
+            start: center of first Gaussian function, :math:`\mu_0`.  第一个高斯函数的中心值
             trainable: If True, widths and offset of Gaussian functions
-                are adjusted during training process.
+                are adjusted during training process.  是否在训练过程中调整高斯函数的宽度和偏移量
         """
         super(GaussianRBF, self).__init__()
-        self.n_rbf = n_rbf
+        self.n_rbf = n_rbf  # 高斯函数的数量
 
         # compute offset and width of Gaussian functions
-        offset = torch.linspace(start, cutoff, n_rbf)
+        offset = torch.linspace(start, cutoff, n_rbf)  # 计算高斯函数的中心偏移量，使用 torch.linspace(start, cutoff, n_rbf) 生成均匀分布的点，作为高斯函数的中心
         widths = torch.FloatTensor(
             torch.abs(offset[1] - offset[0]) * torch.ones_like(offset)
         )
