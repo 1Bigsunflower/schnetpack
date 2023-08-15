@@ -9,16 +9,20 @@ from torch.autograd import grad
 
 
 def replicate_module(
-    module_factory: Callable[[], nn.Module], n: int, share_params: bool
+    module_factory: Callable[[], nn.Module],  # 用于创建单个模块
+    n: int,   # n：重复次数，表示要创建多少个相同的模块
+    share_params: bool  # 用于指定是否共享模块的参数
 ):
     if share_params:
+        # 创建一个包含 n 个相同模块的模块列表
         module_list = nn.ModuleList([module_factory()] * n)
     else:
+        # 为每个重复的模块创建独立的实例
         module_list = nn.ModuleList([module_factory() for i in range(n)])
     return module_list
 
 
-def derivative_from_molecular(
+def derivative_from_molecular(  # 用于计算 fx 相对于 dx 的导数。这个函数主要用于计算分子属性（如能量、偶极矩等）
     fx: torch.Tensor,
     dx: torch.Tensor,
     create_graph: bool = False,
