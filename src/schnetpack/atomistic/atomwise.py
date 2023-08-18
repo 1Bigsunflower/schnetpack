@@ -11,7 +11,7 @@ import schnetpack.properties as properties
 __all__ = ["Atomwise", "DipoleMoment", "Polarizability"]
 
 
-class Atomwise(nn.Module):
+class Atomwise(nn.Module):  # 预测原子的贡献并累积全局预测，例如能量的预测
     """
     Predicts atom-wise contributions and accumulates global prediction, e.g. for the energy.
 
@@ -20,14 +20,14 @@ class Atomwise(nn.Module):
 
     def __init__(
         self,
-        n_in: int,
-        n_out: int = 1,
-        n_hidden: Optional[Union[int, Sequence[int]]] = None,
-        n_layers: int = 2,
-        activation: Callable = F.silu,
-        aggregation_mode: str = "sum",
-        output_key: str = "y",
-        per_atom_output_key: Optional[str] = None,
+        n_in: int,  # 输入维度
+        n_out: int = 1,  # 输出维度
+        n_hidden: Optional[Union[int, Sequence[int]]] = None,  # 隐藏层大小，如果为整数，则所有隐藏层使用相同的节点数量；如果为 None，则每个隐藏层的节点数量从输入维度开始依次减半
+        n_layers: int = 2,  # 网络的层数
+        activation: Callable = F.silu,  # 激活函数
+        aggregation_mode: str = "sum",  # 聚合模式
+        output_key: str = "y",  # 保存结果的键
+        per_atom_output_key: Optional[str] = None,  # 保存每个原子结果的键
     ):
         """
         Args:
@@ -48,7 +48,7 @@ class Atomwise(nn.Module):
         self.model_outputs = [output_key]
         self.per_atom_output_key = per_atom_output_key
         if self.per_atom_output_key is not None:
-            self.model_outputs.append(self.per_atom_output_key)
+            self.model_outputs.append(self.per_atom_output_key)  # 用于在训练过程中跟踪模型输出的属性
         self.n_out = n_out
 
         if aggregation_mode is None and self.per_atom_output_key is None:
@@ -57,7 +57,7 @@ class Atomwise(nn.Module):
                 + " since no accumulated output will be returned!"
             )
 
-        self.outnet = spk.nn.build_mlp(
+        self.outnet = spk.nn.build_mlp(  # 构建一个多层感知机
             n_in=n_in,
             n_out=n_out,
             n_hidden=n_hidden,
@@ -68,27 +68,27 @@ class Atomwise(nn.Module):
 
     def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         # predict atomwise contributions
-        y = self.outnet(inputs["scalar_representation"])
+        y = self.outnet(inputs["scalar_representation"])  # 使用 MLP 对输入的 "scalar_representation" 进行预测，得到原子的贡献预测张量 y
 
         # accumulate the per-atom output if necessary
         if self.per_atom_output_key is not None:
-            inputs[self.per_atom_output_key] = y
+            inputs[self.per_atom_output_key] = y  # 将贡献预测张量 y 添加到输入字典中，使用 per_atom_output_key 作为键
 
         # aggregate
-        if self.aggregation_mode is not None:
+        if self.aggregation_mode is not None:  # 根据聚合模式对贡献预测进行累积
             idx_m = inputs[properties.idx_m]
             maxm = int(idx_m[-1]) + 1
-            y = snn.scatter_add(y, idx_m, dim_size=maxm)
+            y = snn.scatter_add(y, idx_m, dim_size=maxm)  # 将原子贡献预测张量 y 根据索引张量 idx_m 进行累积求和
             y = torch.squeeze(y, -1)
 
             if self.aggregation_mode == "avg":
-                y = y / inputs[properties.n_atoms]
+                y = y / inputs[properties.n_atoms]  # 得到平均结果张量
 
         inputs[self.output_key] = y
         return inputs
 
 
-class DipoleMoment(nn.Module):
+class DipoleMoment(nn.Module):  # 预测分子偶极矩，根据输入的偏置电荷和（可选）局部原子偶极矩来预测分子的偶极矩
     """
     Predicts dipole moments from latent partial charges and (optionally) local, atomic dipoles.
     The latter requires a representation supplying (equivariant) vector features.
@@ -108,16 +108,16 @@ class DipoleMoment(nn.Module):
 
     def __init__(
         self,
-        n_in: int,
-        n_hidden: Optional[Union[int, Sequence[int]]] = None,
-        n_layers: int = 2,
-        activation: Callable = F.silu,
-        predict_magnitude: bool = False,
-        return_charges: bool = False,
-        dipole_key: str = properties.dipole_moment,
-        charges_key: str = properties.partial_charges,
-        correct_charges: bool = True,
-        use_vector_representation: bool = False,
+        n_in: int,  # 输入维度
+        n_hidden: Optional[Union[int, Sequence[int]]] = None,  # 隐藏层的大小
+        n_layers: int = 2,  # 隐藏层的数量
+        activation: Callable = F.silu,  # 激活函数
+        predict_magnitude: bool = False,  # 是否预测偶极矩的大小
+        return_charges: bool = False,  # 是否返回潜在的偏置电荷
+        dipole_key: str = properties.dipole_moment,  # 存储偶极矩的键
+        charges_key: str = properties.partial_charges,  # 存储偏置电荷的键
+        correct_charges: bool = True,  # 是否修正偏置电荷，使其总和等于总电荷
+        use_vector_representation: bool = False,  # 是否使用向量表示来预测局部原子偶极矩
     ):
         """
         Args:
@@ -209,11 +209,11 @@ class DipoleMoment(nn.Module):
         if self.predict_magnitude:
             y = torch.norm(y, dim=1, keepdim=False)
 
-        inputs[self.dipole_key] = y
+        inputs[self.dipole_key] = y  # 将计算得到的分子偶极矩存储在dipole_key键下
         return inputs
 
 
-class Polarizability(nn.Module):
+class Polarizability(nn.Module):  # 预测分子极化率张量，使用张量分解方法进行预测
     """
     Predicts polarizability tensor using tensor rank factorization.
     This requires an equivariant representation, e.g. PaiNN, that provides both scalar and vectorial features.
@@ -227,11 +227,11 @@ class Polarizability(nn.Module):
 
     def __init__(
         self,
-        n_in: int,
-        n_hidden: Optional[Union[int, Sequence[int]]] = None,
-        n_layers: int = 2,
-        activation: Callable = F.silu,
-        polarizability_key: str = properties.polarizability,
+        n_in: int,  # 输入维度
+        n_hidden: Optional[Union[int, Sequence[int]]] = None,  # 隐藏层的大小
+        n_layers: int = 2,  # 隐藏层的数量
+        activation: Callable = F.silu,  # 激活函数
+        polarizability_key: str = properties.polarizability,  # 存储预测的极化率的键
     ):
         """
         Args:
@@ -264,7 +264,7 @@ class Polarizability(nn.Module):
         self.requires_dr = False
         self.requires_stress = False
 
-    def forward(self, inputs):
+    def forward(self, inputs):  # 根据输入计算分子的标量和矢量表示
         positions = inputs[properties.R]
         l0 = inputs["scalar_representation"]
         l1 = inputs["vector_representation"]
@@ -289,5 +289,5 @@ class Polarizability(nn.Module):
         maxm = int(idx_m[-1]) + 1
         alpha = snn.scatter_add(alpha, idx_m, dim_size=maxm)
 
-        inputs[self.polarizability_key] = alpha
+        inputs[self.polarizability_key] = alpha  # 将计算得到的极化率张量存储在polarizability_key键下
         return inputs
