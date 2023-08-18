@@ -10,7 +10,7 @@ import schnetpack.properties as properties
 __all__ = ["SO3net"]
 
 
-class SO3net(nn.Module):
+class SO3net(nn.Module):  # 用于生成原子环境的特征表示
     """
     A simple SO3-equivariant representation using spherical harmonics and
     Clebsch-Gordon tensor products.
@@ -19,14 +19,14 @@ class SO3net(nn.Module):
 
     def __init__(
         self,
-        n_atom_basis: int,
-        n_interactions: int,
-        lmax: int,
-        radial_basis: nn.Module,
-        cutoff_fn: Optional[Callable] = None,
-        shared_interactions: bool = False,
-        max_z: int = 100,
-        return_vector_representation: bool = False,
+        n_atom_basis: int,  # 描述原子环境的特征数量，决定了嵌入向量的大小
+        n_interactions: int,  # 交互块的数量
+        lmax: int,  # 球面谐波函数的最大角动量
+        radial_basis: nn.Module,  # 用于在一组基函数中扩展原子间距离的层
+        cutoff_fn: Optional[Callable] = None,  # 截断函数
+        shared_interactions: bool = False,  # 是否共享交互块
+        max_z: int = 100,  # 原子序数的最大值
+        return_vector_representation: bool = False,  # 是否返回笛卡尔坐标系中的 l=1 特征
     ):
         """
         Args:
@@ -82,7 +82,8 @@ class SO3net(nn.Module):
         )
         self.so3product = so3.SO3TensorProduct(lmax)
 
-    def forward(self, inputs: Dict[str, torch.Tensor]):
+    def forward(self, inputs: Dict[str, torch.Tensor]):  # 用于计算原子表示或嵌入
+
         """
         Compute atomic representations/embeddings.
 
@@ -94,22 +95,23 @@ class SO3net(nn.Module):
             list of torch.Tensor: intermediate atom-wise representations, if
             return_intermediate=True was used.
         """
-        # get tensors from input dictionary
-        atomic_numbers = inputs[properties.Z]
-        r_ij = inputs[properties.Rij]
+        # get tensors from input dictionary  从输入字典中获取张量
+        atomic_numbers = inputs[properties.Z]  # 原子序号
+        r_ij = inputs[properties.Rij]  # 原子对之间的距离
+        # 原子对的索引
         idx_i = inputs[properties.idx_i]
         idx_j = inputs[properties.idx_j]
 
-        # compute atom and pair features
-        d_ij = torch.norm(r_ij, dim=1, keepdim=True)
-        dir_ij = r_ij / d_ij
+        # compute atom and pair features  计算原子和原子对的特征
+        d_ij = torch.norm(r_ij, dim=1, keepdim=True)  # 计算原子对距离的范数
+        dir_ij = r_ij / d_ij  # 计算原子对方向向量
 
-        Yij = self.sphharm(dir_ij)
-        radial_ij = self.radial_basis(d_ij)
-        cutoff_ij = self.cutoff_fn(d_ij)[..., None]
+        Yij = self.sphharm(dir_ij)  # 使用球面谐波函数计算
+        radial_ij = self.radial_basis(d_ij)  # 使用径向基函数计算
+        cutoff_ij = self.cutoff_fn(d_ij)[..., None]  # 使用截断函数计算
 
-        x0 = self.embedding(atomic_numbers)[:, None]
-        x = so3.scalar2rsh(x0, int(self.lmax))
+        x0 = self.embedding(atomic_numbers)[:, None]  # 初始化原子的表示
+        x = so3.scalar2rsh(x0, int(self.lmax))  # 球谐函数展开的表示 x
 
         for so3conv, mixing1, mixing2, gating, mixing3 in zip(
                 self.so3convs, self.mixings1, self.mixings2, self.gatings, self.mixings3
@@ -122,6 +124,7 @@ class SO3net(nn.Module):
             dx = mixing3(dx)
             x = x + dx
 
+        # 将计算得到的原子表示存储在输入字典中，包括标量表示和多极表示
         inputs["scalar_representation"] = x[:, 0]
         inputs["multipole_representation"] = x
 
