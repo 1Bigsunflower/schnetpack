@@ -10,7 +10,7 @@ import schnetpack.units as spk_units
 __all__ = ["ZBLRepulsionEnergy"]
 
 
-class ZBLRepulsionEnergy(nn.Module):
+class ZBLRepulsionEnergy(nn.Module):  # Ziegler-Biersack-Littmark风格斥力能,用于计算原子间的斥力能
     """
     Computes a Ziegler-Biersack-Littmark style repulsion energy
 
@@ -61,7 +61,7 @@ class ZBLRepulsionEnergy(nn.Module):
             torch.tensor([0.18175, 0.50986, 0.28022, 0.02817])
         )
 
-        # Initialize network parameters
+        # Initialize network parameters 这些参数通过优化来调整以提高模型的性能
         self.a_pow = nn.Parameter(a_pow, requires_grad=trainable)
         self.a_div = nn.Parameter(a_div, requires_grad=trainable)
         self.coefficients = nn.Parameter(coefficients, requires_grad=trainable)
