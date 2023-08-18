@@ -9,7 +9,7 @@ from schnetpack.utils import required_fields_from_properties
 __all__ = ["StaticExternalFields"]
 
 
-class StaticExternalFields(nn.Module):
+class StaticExternalFields(nn.Module):  # 设置响应模型中的外部场
     """
     Input routine for setting up dummy external fields in response models.
     Checks if fields are present in input and sets dummy fields otherwise.
@@ -23,8 +23,8 @@ class StaticExternalFields(nn.Module):
 
     def __init__(
         self,
-        external_fields: List[str] = [],
-        response_properties: Optional[List[str]] = None,
+        external_fields: List[str] = [],  # 指定所需的外部场
+        response_properties: Optional[List[str]] = None,  # 指定请求的响应属性来确定所需的外部场
     ):
         super(StaticExternalFields, self).__init__()
 
