@@ -11,7 +11,7 @@ import numpy as np
 __all__ = ["CoulombPotential", "DampedCoulombPotential", "EnergyCoulomb", "EnergyEwald"]
 
 
-class CoulombPotential(nn.Module):
+class CoulombPotential(nn.Module):  # 计算库伦势能的
     """
     Basic 1/r Coulomb component. For use in `schnetpack.atomistic.EnergyCoulomb`.
     """
@@ -23,7 +23,7 @@ class CoulombPotential(nn.Module):
         return 1.0 / d_ij
 
 
-class DampedCoulombPotential(nn.Module):
+class DampedCoulombPotential(nn.Module):  # 计算阻尼库伦势能
     """
     Compute a damped Coulomb potential as described in [#physnet1]_ For use in `schnetpack.atomistic.EnergyCoulomb`.
 
@@ -57,7 +57,7 @@ class DampedCoulombPotential(nn.Module):
         return f_switch * damped + (1 - f_switch) * potential
 
 
-class EnergyCoulomb(nn.Module):
+class EnergyCoulomb(nn.Module):  # 计算一组点电荷之间的库伦能，根据输入的参数和截断半径进行计算，支持阻尼库伦能的计算
     """
     Compute Coulomb energy from a set of point charges via direct summation. Depending on the form of the
     potential function, the interaction can be damped for short distances. If a cutoff is requested, the full
@@ -75,13 +75,13 @@ class EnergyCoulomb(nn.Module):
 
     def __init__(
         self,
-        energy_unit: Union[str, float],
-        position_unit: Union[str, float],
-        coulomb_potential: nn.Module,
-        output_key: str,
-        charges_key: str = properties.partial_charges,
-        use_neighbors_lr: bool = True,
-        cutoff: Optional[float] = None,
+        energy_unit: Union[str, float],  # 用于能量的单位
+        position_unit: Union[str, float],  # 用于长度和位置的单位
+        coulomb_potential: nn.Module,  # 距离势的部分
+        output_key: str,  # 输出中能量属性的名称
+        charges_key: str = properties.partial_charges,  # 输入批次中偏电荷的键值
+        use_neighbors_lr: bool = True,  # 输入批次中偏电荷的键值
+        cutoff: Optional[float] = None  # 输入批次中偏电荷的键值
     ):
         super(EnergyCoulomb, self).__init__()
 
@@ -145,7 +145,7 @@ class EnergyCoulomb(nn.Module):
             )
 
         y = snn.scatter_add((q_ij * potential), idx_i, dim_size=n_atoms)
-        y = snn.scatter_add(y, idx_m, dim_size=n_molecules)
+        y = snn.scatter_add(y, idx_m, dim_size=n_molecules)  # 使用 snn.scatter_add 函数计算库伦能
         y = 0.5 * self.ke * torch.squeeze(y, -1)
 
         inputs[self.output_key] = y
@@ -156,7 +156,7 @@ class EnergyEwaldError(Exception):
     pass
 
 
-class EnergyEwald(torch.nn.Module):
+class EnergyEwald(torch.nn.Module):  # 用于计算周期性边界条件下的周期盒内一组点电荷库伦能
     """
     Compute the Coulomb energy of a set of point charges inside a periodic box.
     Only works for periodic boundary conditions in all three spatial directions and orthorhombic boxes.
@@ -174,14 +174,14 @@ class EnergyEwald(torch.nn.Module):
 
     def __init__(
         self,
-        alpha: float,
-        k_max: int,
-        energy_unit: Union[str, float],
-        position_unit: Union[str, float],
-        output_key: str,
-        charges_key: str = properties.partial_charges,
-        use_neighbors_lr: bool = True,
-        screening_fn: Optional[nn.Module] = None,
+        alpha: float,  # Ewald求和中的α参数
+        k_max: int,  # 倒格矢的数量
+        energy_unit: Union[str, float],  # 用于能量的单位
+        position_unit: Union[str, float],  # 用于长度和位置的单位
+        output_key: str,  # 输出中能量属性的名称
+        charges_key: str = properties.partial_charges,  # 输入批次中偏电荷的键值
+        use_neighbors_lr: bool = True,  # 是否使用标准的或远程邻域列表元素
+        screening_fn: Optional[nn.Module] = None,  # 是否使用标准的或远程邻域列表元素
     ):
         super(EnergyEwald, self).__init__()
 
@@ -206,7 +206,7 @@ class EnergyEwald(torch.nn.Module):
         kvecs = self._generate_kvecs()
         self.register_buffer("kvecs", kvecs)
 
-    def _generate_kvecs(self) -> torch.Tensor:
+    def _generate_kvecs(self) -> torch.Tensor:  # 用于设置倒格矢 kvecs
         """
         Auxiliary routine for setting up the k-vectors.
 
@@ -223,7 +223,7 @@ class EnergyEwald(torch.nn.Module):
 
         return kvecs
 
-    def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:  # 用于计算周期性系统的库伦能
         """
         Compute the Coulomb energy of the periodic system.
 
@@ -263,7 +263,7 @@ class EnergyEwald(torch.nn.Module):
         inputs[self.output_key] = y
         return inputs
 
-    def _real_space(
+    def _real_space(  # 用于计算被筛选的电荷的实空间贡献
         self,
         q: torch.Tensor,
         d_ij: torch.Tensor,
@@ -307,7 +307,7 @@ class EnergyEwald(torch.nn.Module):
 
         return y
 
-    def _reciprocal_space(
+    def _reciprocal_space(  # 用于计算倒空间的贡献
         self,
         q: torch.Tensor,
         positions: torch.Tensor,
@@ -372,4 +372,4 @@ class EnergyEwald(torch.nn.Module):
         # Bring everything together
         y_ewald = self.ke * (y_ewald - self_interaction)
 
-        return y_ewald
+        return y_ewald  # 返回倒空间能量
