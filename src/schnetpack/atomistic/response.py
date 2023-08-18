@@ -15,7 +15,7 @@ class ResponseException(Exception):
     pass
 
 
-class Forces(nn.Module):
+class Forces(nn.Module):  # 用于预测力和应力，根据能量预测结果对原子位置和应变进行求导，从而计算出力和应力
     """
     Predicts forces and stress as response of the energy prediction
     w.r.t. the atom positions and strain.
@@ -39,11 +39,11 @@ class Forces(nn.Module):
             stress_key: Key of the stress in results.
         """
         super(Forces, self).__init__()
-        self.calc_forces = calc_forces
-        self.calc_stress = calc_stress
-        self.energy_key = energy_key
-        self.force_key = force_key
-        self.stress_key = stress_key
+        self.calc_forces = calc_forces  # 如果为True，计算原子力
+        self.calc_stress = calc_stress  # 如果为True，计算应力张量
+        self.energy_key = energy_key  # 能量在结果中的键
+        self.force_key = force_key  # 力在结果中的键
+        self.stress_key = stress_key  # 应力在结果中的键
         self.model_outputs = []
         if calc_forces:
             self.model_outputs.append(force_key)
@@ -57,9 +57,9 @@ class Forces(nn.Module):
             self.required_derivatives.append(properties.strain)
 
     def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        Epred = inputs[self.energy_key]
+        Epred = inputs[self.energy_key]  # 从inputs字典中获取能量预测结果Epred
 
-        go: List[Optional[torch.Tensor]] = [torch.ones_like(Epred)]
+        go: List[Optional[torch.Tensor]] = [torch.ones_like(Epred)]  # 用于保存用于计算梯度的参数
         grads = grad(
             [Epred],
             [inputs[prop] for prop in self.required_derivatives],
@@ -92,25 +92,25 @@ class Forces(nn.Module):
         return inputs
 
 
-class Response(nn.Module):
+class Response(nn.Module):  # 用于计算分子响应性质，基于能量模型的导数计算不同的响应性质，例如力、应力、海森矩阵、偶极矩、极化率等。模型的输入是能量键和所需的响应性质列表，输出是计算得到的响应性质。
     implemented_properties = [
-        properties.forces,
-        properties.stress,
-        properties.hessian,
-        properties.dipole_moment,
-        properties.polarizability,
-        properties.dipole_derivatives,
-        properties.partial_charges,
-        properties.polarizability_derivatives,
-        properties.shielding,
-        properties.nuclear_spin_coupling,
+        properties.forces,  # 力
+        properties.stress,  # 应力
+        properties.hessian,  # 海森矩阵
+        properties.dipole_moment,  # 偶极矩
+        properties.polarizability,  # 极化率
+        properties.dipole_derivatives,  # 偶极导数
+        properties.partial_charges,  # 部分电荷
+        properties.polarizability_derivatives,  # 极化率导数
+        properties.shielding,  # 屏蔽效应
+        properties.nuclear_spin_coupling,  # 核自旋耦合
     ]
 
     def __init__(
         self,
-        energy_key: str,
-        response_properties: List[str],
-        map_properties: Optional[Dict[str, str]] = None,
+        energy_key: str,  # 响应计算的能力属性的键
+        response_properties: List[str],  # 请求的响应性质列表
+        map_properties: Optional[Dict[str, str]] = None,  # 用于映射属性名称的字典
     ):
         """
         Compute different response properties by taking derivatives of an energy model. See [#field1]_ for details.
@@ -299,7 +299,7 @@ class Response(nn.Module):
 
         return inputs
 
-    def _construct_properties(
+    def _construct_properties(  # 用于根据请求的响应属性自动确定响应层的计算设置
         self,
     ) -> Tuple[Dict[str, str], List[str], Dict[str, bool], Dict[str, bool]]:
         """
@@ -317,7 +317,7 @@ class Response(nn.Module):
             - dictionary of derivative instructions
             - dictionary of required graphs
         """
-        derivative_instructions = {
+        derivative_instructions = {  # 存储导数指令
             "dEdR": False,
             "d2EdR2": False,
             "dEdF": False,
@@ -330,7 +330,7 @@ class Response(nn.Module):
             "d2EdI2": False,
             "dEds": False,
         }
-        graph_required = {
+        graph_required = {  # 图构建
             "dEdR": False,
             "d2EdR2": False,
             "dEdF": False,
@@ -344,6 +344,7 @@ class Response(nn.Module):
             "dEds": False,
         }
 
+        # 用于存储所需导数和基本导数
         required_derivatives = set()
         basic_derivatives = dict()
 
@@ -424,14 +425,14 @@ class Response(nn.Module):
         required_derivatives = list(required_derivatives)
 
         return (
-            basic_derivatives,
-            required_derivatives,
-            derivative_instructions,
-            graph_required,
+            basic_derivatives,  # 基本导数的字典
+            required_derivatives,  # 需要梯度的变量列表
+            derivative_instructions,  # 导数指令的字典
+            graph_required,  # 需要构建的图的字典
         )
 
 
-class Strain(nn.Module):
+class Strain(nn.Module):  # 用于计算应力作为响应属性
     """
     This is required to calculate the stress as a response property.
     Adds strain-dependence to relative atomic positions Rij and (optionally) to absolute
