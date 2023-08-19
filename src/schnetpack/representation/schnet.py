@@ -12,15 +12,16 @@ import schnetpack.nn as snn
 __all__ = ["SchNet", "SchNetInteraction"]
 
 
-class SchNetInteraction(nn.Module):
+# SchNet交互块
+class SchNetInteraction(nn.Module):  # 用于建模原子系统之间的相互作用
     r"""SchNet interaction block for modeling interactions of atomistic systems."""
 
     def __init__(
         self,
-        n_atom_basis: int,
-        n_rbf: int,
-        n_filters: int,
-        activation: Callable = shifted_softplus,
+        n_atom_basis: int,  # 原子特征维度(
+        n_rbf: int,  # 径向基函数的数量
+        n_filters: int,  # 连续滤波器卷积中的滤波器数量
+        activation: Callable = shifted_softplus,  # 激活函数
     ):
         """
         Args:
@@ -58,20 +59,21 @@ class SchNetInteraction(nn.Module):
         Returns:
             atom features after interaction
         """
-        x = self.in2f(x)
-        Wij = self.filter_network(f_ij)
-        Wij = Wij * rcut_ij[:, None]
+        x = self.in2f(x)  # 将输入特征x通过线性变换层(in2f)转换为滤波器空间的特征
+        Wij = self.filter_network(f_ij)  # 使用滤波器网络(filter_network)将径向基函数特征f_ij转换为滤波器Wij
+        Wij = Wij * rcut_ij[:, None]  # 通过乘以截断距离矩阵rcut_ij进行截断操作
 
-        # continuous-filter convolution
-        x_j = x[idx_j]
-        x_ij = x_j * Wij
-        x = scatter_add(x_ij, idx_i, dim_size=x.shape[0])
+        # continuous-filter convolution  连续滤波器卷积操作
+        x_j = x[idx_j]  # 根据邻居原子索引idx_j获取对应原子的特征x_j
+        x_ij = x_j * Wij  # 原子间的相互作用
+        x = scatter_add(x_ij, idx_i, dim_size=x.shape[0])  # 利用scatter_add函数将相互作用特征x_ij聚合到中心原子上，得到更新后的原子特征
 
-        x = self.f2out(x)
+        x = self.f2out(x)  # 通过两个线性变换层(f2out)对原子特征x进行进一步的变换和映射，并返回计算得到的更新后的原子特征。
         return x
+        # 根据输入的原子特征和相互作用信息，计算并更新原子的表示。
 
 
-class SchNet(nn.Module):
+class SchNet(nn.Module):  # 用于学习原子系统的表示，通过连续滤波器卷积来建模原子之间的相互作用
     """SchNet architecture for learning representations of atomistic systems
 
     References:
@@ -91,14 +93,14 @@ class SchNet(nn.Module):
 
     def __init__(
         self,
-        n_atom_basis: int,
-        n_interactions: int,
-        radial_basis: nn.Module,
-        cutoff_fn: Callable,
-        n_filters: int = None,
-        shared_interactions: bool = False,
-        max_z: int = 100,
-        activation: Callable = shifted_softplus,
+        n_atom_basis: int,  # 原子特征维度
+        n_interactions: int,  # 相互作用块的数量
+        radial_basis: nn.Module,  # 径向基函数
+        cutoff_fn: Callable,  # 截断函数
+        n_filters: int = None,  # 连续滤波器数量
+        shared_interactions: bool = False,  # 是否共享相互作用权重
+        max_z: int = 100,  # 最大核电荷
+        activation: Callable = shifted_softplus,  # 激活函数
     ):
         """
         Args:
@@ -122,8 +124,10 @@ class SchNet(nn.Module):
         self.cutoff = cutoff_fn.cutoff
 
         # layers
+        # 嵌入层（Embedding Layer），用于将原子序数映射为原子特征向量。其中，max_z是最大核电荷值，self.n_atom_basis是原子特征维度（embedding维度），padding_idx=0表示使用零作为填充索引。
         self.embedding = nn.Embedding(max_z, self.n_atom_basis, padding_idx=0)
 
+        # 多层相互作用块的集合。使用函数replicate_module重复生成n_interactions个相互作用块。每个相互作用块都是SchNetInteraction模型的实例
         self.interactions = snn.replicate_module(
             lambda: SchNetInteraction(
                 n_atom_basis=self.n_atom_basis,
@@ -136,19 +140,20 @@ class SchNet(nn.Module):
         )
 
     def forward(self, inputs: Dict[str, torch.Tensor]):
-        atomic_numbers = inputs[structure.Z]
-        r_ij = inputs[structure.Rij]
-        idx_i = inputs[structure.idx_i]
-        idx_j = inputs[structure.idx_j]
+        # 从输入字典中获取
+        atomic_numbers = inputs[structure.Z]  # 原子序数张量
+        r_ij = inputs[structure.Rij]  # 原子之间的距离张量
+        idx_i = inputs[structure.idx_i]  # 中心原子索引张量
+        idx_j = inputs[structure.idx_j]  # 邻居原子索引张量
 
         # compute atom and pair features
-        x = self.embedding(atomic_numbers)
-        d_ij = torch.norm(r_ij, dim=1)
-        f_ij = self.radial_basis(d_ij)
-        rcut_ij = self.cutoff_fn(d_ij)
+        x = self.embedding(atomic_numbers)  # 通过嵌入层(self.embedding)将原子序数(atomic_numbers)转换为原子特征向量。
+        d_ij = torch.norm(r_ij, dim=1)  # 计算原子之间的距离d_ij,通过计算torch.norm函数在第一个维度上求范数得到
+        f_ij = self.radial_basis(d_ij)  # 径向基函数对象(self.radial_basis)将距离d_ij转化为径向基函数特征f_ij
+        rcut_ij = self.cutoff_fn(d_ij)  # 截断矩阵特征rcut_ij
 
         # compute interaction block to update atomic embeddings
-        for interaction in self.interactions:
+        for interaction in self.interactions:  # 循环遍历多个相互作用块(self.interactions)，依次更新原子特征x
             v = interaction(x, f_ij, idx_i, idx_j, rcut_ij)
             x = x + v
 
